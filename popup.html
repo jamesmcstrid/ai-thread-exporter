@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 220px;
+            padding: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+        }
+
+        .header {
+            color: #1a73e8;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            cursor: pointer;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #1557b0;
+        }
+
+        .footer {
+            font-size: 10px;
+            color: #777;
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">AI Thread Exporter</div>
+    <button id="exportBtn">✨ Exportera tråd</button>
+    <div class="footer">Spara din historik som .md</div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
