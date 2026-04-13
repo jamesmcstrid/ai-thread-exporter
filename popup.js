@@ -6,66 +6,79 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
 function exportUniversalMarkdown() {
     const date = new Date().toLocaleString('sv-SE');
     const title = document.title.replace(" - Gemini", "").replace(" - Claude", "").replace(" - ChatGPT", "");
+    const hostname = window.location.hostname;
 
     let markdown = `---\ntitel: "${title}"\ndatum: ${date}\nkälla: ${window.location.href}\n---\n\n# ${title}\n\n`;
 
-    // Här lägger vi till Claudes specifika klasser (.font-claude-message och [data-testid])
-    const selectors = [
-        '.message-content',             // Gemini
-        '.model-response-text',         // Gemini/Old
-        '.user-prompt',                 // Gemini
-        '[data-message-author-role]',   // ChatGPT
-        '.font-claude-message',         // Claude (AI)
-        '[data-testid="user-message"]', // Claude (User)
-        '.prose'                        // Allmän fallback
-    ];
+    // Samla meddelanden som { el, role } beroende på plattform
+    let messages = [];
 
-    const containers = document.querySelectorAll(selectors.join(', '));
+    if (hostname.includes('claude.ai')) {
+        // Claude: hämta AI- och användarsvar separat för att undvika
+        // dubbletter (.prose är barn till .font-claude-message)
+        const userEls = document.querySelectorAll('[data-testid="user-message"]');
+        const aiEls   = document.querySelectorAll('.font-claude-message');
 
-    if (containers.length === 0) {
+        userEls.forEach(el => messages.push({ el, role: 'user' }));
+        aiEls.forEach(el   => messages.push({ el, role: 'ai' }));
+
+        // Sortera i dokumentordning (= konversationsordning)
+        messages.sort((a, b) =>
+            a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+        );
+
+    } else if (hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) {
+        // ChatGPT
+        document.querySelectorAll('[data-message-author-role]').forEach(el => {
+            const role = el.getAttribute('data-message-author-role') === 'user' ? 'user' : 'ai';
+            messages.push({ el, role });
+        });
+
+    } else if (hostname.includes('gemini.google.com')) {
+        // Gemini
+        document.querySelectorAll('.message-content, .model-response-text, .user-prompt').forEach(el => {
+            const role = el.classList.contains('user-prompt') ? 'user' : 'ai';
+            messages.push({ el, role });
+        });
+
+    } else {
+        // Generisk fallback
+        document.querySelectorAll('[data-message-author-role], .prose').forEach(el => {
+            const role = el.getAttribute?.('data-message-author-role') === 'user' ? 'user' : 'ai';
+            messages.push({ el, role });
+        });
+    }
+
+    if (messages.length === 0) {
         alert("Hittade inga meddelanden. Testa att scrolla lite i chatten så att sidan 'vaknar', och tryck sen igen!");
         return;
     }
 
-    containers.forEach((container) => {
-        // Identifiera roll för Claude, Gemini och ChatGPT
-        const isUser = container.closest('[data-testid="user-message"]') ||
-            container.closest('[data-message-author-role="user"]') ||
-            container.classList.contains('user-prompt') ||
-            container.innerText.toLowerCase().startsWith('du\n');
-
-        const roleHeader = isUser ? "## 👤 Du" : "## 🤖 AI";
-
-        // Förhindra dubbletter om flera selectors matchar samma block
-        if (container.dataset.exported === "true") return;
-        container.dataset.exported = "true";
-
+    messages.forEach(({ el, role }) => {
+        const roleHeader = role === 'user' ? "## 👤 Du" : "## 🤖 AI";
         markdown += `${roleHeader}\n\n`;
 
         // Gräv fram text, kod och bilder
-        const elements = container.querySelectorAll('p, pre, ul, ol, h1, h2, h3, img, .text-zinc-500');
+        const elements = el.querySelectorAll('p, pre, ul, ol, h1, h2, h3, img');
 
         if (elements.length > 0) {
-            elements.forEach(el => {
-                if (el.tagName === 'IMG') {
-                    markdown += `![Bild](${el.src})\n\n`;
-                } else if (el.tagName === 'PRE' || el.querySelector('code')) {
-                    markdown += `\`\`\`\n${el.innerText.trim()}\n\`\`\`\n\n`;
-                } else if (el.tagName === 'UL' || el.tagName === 'OL') {
-                    markdown += `${el.innerText}\n\n`;
+            elements.forEach(child => {
+                if (child.tagName === 'IMG') {
+                    markdown += `![Bild](${child.src})\n\n`;
+                } else if (child.tagName === 'PRE' || child.querySelector('code')) {
+                    markdown += `\`\`\`\n${child.innerText.trim()}\n\`\`\`\n\n`;
+                } else if (child.tagName === 'UL' || child.tagName === 'OL') {
+                    markdown += `${child.innerText}\n\n`;
                 } else {
-                    markdown += `${el.innerText}\n\n`;
+                    markdown += `${child.innerText}\n\n`;
                 }
             });
         } else {
-            markdown += `${container.innerText}\n\n`;
+            markdown += `${el.innerText}\n\n`;
         }
 
         markdown += `---\n\n`;
     });
-
-    // Städa bort markeringen så vi kan exportera igen utan att ladda om sidan
-    document.querySelectorAll('[data-exported]').forEach(el => delete el.dataset.exported);
 
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
     const blob = new Blob([bom, markdown], { type: 'text/markdown;charset=utf-8' });
