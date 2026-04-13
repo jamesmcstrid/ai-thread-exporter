@@ -15,9 +15,9 @@ function exportUniversalMarkdown() {
 
     if (hostname.includes('claude.ai')) {
         // Claude: hämta AI- och användarsvar separat för att undvika
-        // dubbletter (.prose är barn till .font-claude-message)
+        // dubbletter (.prose är barn till AI-svaret)
         const userEls = document.querySelectorAll('[data-testid="user-message"]');
-        const aiEls   = document.querySelectorAll('.font-claude-message');
+        const aiEls   = document.querySelectorAll('.font-claude-response');
 
         userEls.forEach(el => messages.push({ el, role: 'user' }));
         aiEls.forEach(el   => messages.push({ el, role: 'ai' }));
